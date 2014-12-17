@@ -1,0 +1,7 @@
+Work Flow:
+
+0. change the "108" in the submit.sh
+
+1. just run "./submit.sh"
+
+2. in the reconstruct_mcv0.C, Block is the file number per loop processes. Nfiles is the total loops. 

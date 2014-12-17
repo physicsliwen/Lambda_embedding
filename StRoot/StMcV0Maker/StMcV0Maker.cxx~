@@ -1,0 +1,825 @@
+#include "StMcV0Maker.h"
+#include "StDcaService.h"
+#include "StarClassLibrary/SystemOfUnits.h"
+
+#include <iostream>
+
+#include "StMessMgr.h"
+#include "StEvent/StGlobalTrack.h"
+#include "StEvent/StEvent.h"
+
+#include "StAssociationMaker/StAssociationMaker.h"
+#include "StAssociationMaker/StTrackPairInfo.hh"
+#include "StMcEvent/StMcEvent.hh"
+#include "StEventUtilities/StuRefMult.hh"
+#include "StEventUtilities/StuFtpcRefMult.hh"
+#include "StMcEvent/StMcTrack.hh"
+#include "StMcEvent/StMcVertex.hh"
+
+#include "TH1.h"
+#include "TFile.h"
+#include "TTree.h"
+
+ClassImp(StMcV0Maker)                   // Macro for CINT compatibility
+
+StMcV0Maker::StMcV0Maker(const char * name) : StMaker(name)
+{ // Initialize and/or zero all public/private data members here.
+
+  //for ( Int_t i = 0 ; i < kMaxNumberOfTH1F ; i++ )  // Zero the histogram pointers, not necessary. it is NULL naturaly.
+  //  {
+  //    histogram[i] = NULL ;
+  //  }
+
+  mV0Type = kLambda;	//Lambda as default!
+
+  mDcaAlgoLong = true;
+
+  histogram_output = NULL  ;                    // Zero the Pointer to histogram output file
+  v0tree_output = NULL  ;                    // Zero the Pointer to v0 tree output file
+  mHistogramOutputFileName = "" ;               // Histogram Output File Name will be set inside the "analysis".C macro
+  mV0TreeOutputFileName = "" ;               // V0 Output File Name will be set inside the "analysis".C macro
+
+  mV0Tree = NULL ;
+
+  mEventsProcessed = 0     ;                    // Zero the Number of Events processed by the maker 
+  mTestNTrack = 0;
+  mTestVZ = 0;
+
+}
+
+StMcV0Maker::~StMcV0Maker() 
+{ // Destroy and/or zero out all public/private data members here.
+}
+
+void StMcV0Maker::initConst(){
+   //initialize the constant for different V0 types.
+   
+   if(mV0Type == kLambda || mV0Type == kAntiLambda){
+	// for Lambda and AntiLambda
+	mMass1      = 0.93827; // mass of proton
+	mMass2      = 0.13957; // mass of pion
+	mMassV0     = 1.115684;// mass of Lambda
+	mGeantIDV0  = (mV0Type == kLambda)? 10018:10026;
+	mGeantID1  = (mV0Type == kLambda)? 14:15;
+	mGeantID2  = (mV0Type == kLambda)? 9:8;
+
+	if(mV0Type == kLambda) { 
+	   mCharge1	= 1;
+	   mCharge2	= -1;
+	}
+	else {
+	   mCharge1	= -1;
+	   mCharge2	= 1;
+	}
+	//do not setup the cut values here. those are parameters
+	
+	//parameters for StDcaService.cxx
+	kShiftConnect = 0.3;
+	kShiftContain = 0.3;
+   }
+   else if(mV0Type == kKs){
+	// for Ks
+	mMass1     = 0.13957;     // mass of pion+
+	mMass2     = 0.13957;     // mass of pion-
+	mMassV0    = 0.49768;     // mass of K0s
+	mGeantIDV0  = 707; //was 16 before 2010.5.
+	mGeantID1  = 8;
+	mGeantID2  = 9;
+	
+	mCharge1	= 1;
+	mCharge2	= -1;
+	//do not setup the cut values here. those are parameters
+	
+	//parameters for StDcaService.cxx
+	kShiftConnect = 0.3;
+	kShiftContain = 0.3;
+   }
+   else {
+	// for photon
+	assert(mV0Type == kPhoton); 
+	mMass1	= 0.51099907e-3;
+	mMass2	= 0.51099907e-3;
+	mMassV0	= 0;
+	mGeantIDV0  = 1;
+	mGeantID1  = 2;
+	mGeantID2  = 3;
+
+	mCharge1	= 1;
+	mCharge2	= -1;
+	/*
+	if(mSameSignPlus){
+	   mCharge1    = 1;
+	   mCharge2    = 1;
+	}
+	if(mSameSignMinus){
+	   mCharge1    = -1;
+	   mCharge2    = -1;
+	}
+	*/
+	//parameters for StDcaService.cxx
+	kShiftConnect = 2;
+	kShiftContain = 2;
+   }
+
+   return;
+}
+
+void StMcV0Maker::initParam(){
+   //setup the cut values here. do not hard-code them in ::Make()
+
+   cutAbsVertexZLeEq  = 70.;
+   cutTriggerIdEq  = 290001; //dau run8
+   //cutTriggerIdEq  = 66007;	 //cucu run5
+   
+   if(mV0Type == kPhoton){
+	cutNHitsGr = 10;
+	cutPtGrEq = 0.006;
+
+	cutAbsNSigma1Le = 3.;
+	cutAbsNSigma2Le = 3.;
+	cutDca1GrEq  = 0;
+	cutDca2GrEq  = 0;
+	//cutDca1LeEq  = 1.5;
+	//cutDca2LeEq  = 1.5;
+
+	cutDca1to2LeEq = 1.5;
+	cutV0MassWidthLeEq = 0.04;
+	//cutDauPtArmLeEq = 0.3;
+	//cutAbsDausPtShoulderDiffLeEq = 1.2;
+	//cutDau1DecAngGr = 0.;
+	//cutDau2DecAngGr = 0.;
+	//cutV0rdotpGr  = 0.;
+	cutDcaV0Le    = 1.5;
+	cutV0DecLenGrEq = 2.5;
+	cutDau1Dau2Ang3DLe = 0.2;
+	cutDau1Dau2DipAngDiffLe = 0.05;
+   }
+   else if(mV0Type == kLambda || mV0Type == kAntiLambda){
+	cutNHitsGr = 15;
+	cutPtGrEq = 0.15;
+
+	cutAbsNSigma1Le = 4.;
+	cutAbsNSigma2Le = 4.;
+	cutDca1GrEq  = 0;
+	cutDca2GrEq  = 0;
+	//cutDca1LeEq  = 1.5;
+	//cutDca2LeEq  = 1.5;
+
+	cutDca1to2LeEq = 3.0;
+	cutV0MassWidthLeEq = 0.07;
+	//cutDauPtArmLeEq = 0.3;
+	//cutAbsDausPtShoulderDiffLeEq = 1.2;
+	//cutDau1DecAngGr = 0.;
+	//cutDau2DecAngGr = 0.;
+	cutV0rdotpGr  = -99999.;
+	cutDcaV0Le    = 5.0;
+	cutV0DecLenGrEq =0.0;
+   }
+   else {
+	cutNHitsGr = 15;
+	cutPtGrEq = 0.15;
+
+	cutAbsNSigma1Le = 4.;
+	cutAbsNSigma2Le = 4.;
+	cutDca1GrEq  = 0;
+	cutDca2GrEq  = 0;
+	//cutDca1LeEq  = 1.5;
+	//cutDca2LeEq  = 1.5;
+
+	cutDca1to2LeEq = 3.0;//1.0
+	cutV0MassWidthLeEq = 0.07;
+	//cutDauPtArmLeEq = 0.3;
+	//cutAbsDausPtShoulderDiffLeEq = 1.2;
+	//cutDau1DecAngGr = 0.;
+	//cutDau2DecAngGr = 0.;
+	cutV0rdotpGr  = -99999.;
+	cutDcaV0Le    = 5.0;//1.5
+	cutV0DecLenGrEq =0.0;//2.0
+   }
+
+
+   return;
+}
+
+void StMcV0Maker::initHisto()
+{
+   // Create Histograms
+   // there is no better way to set QA histograms. do not use histogram arrays or vectors.
+   // it is not useful. there are no need to operate all the histograms at the same time.
+
+   const Int_t    nbins    =  100   ;
+
+   hVertexZ  = new TH1F( "VertexZ", "Event Vertex Z Position", nbins*8, -100.0, 100.0 ) ; 
+   hPt  = new TH1F( "Pt", "Transverse Momentum for all particles", nbins, 0.0, 10.0 ) ;
+   hNPrimVertex  = new TH1F( "PrimVertex", "Number of Primary Vertex", 10, 0.0, 10.0 ) ;
+   hNRefMult  = new TH1F( "RefMult", "Reference Multiplicity", 1000, 0.0, 1000.0 ) ;
+   hSelectNRefMult  = new TH1F( "SelectRefMult", "Reference Multiplicity of selected events", 1000, 0.0, 1000.0 ) ;
+   hPtDiff  = new TH1F( "ptdiff", "Reference Multiplicity", 100, 0.0, 0.02 ) ;
+   hOrDiff  = new TH1F( "ordiff", "Reference Multiplicity", 100, 0.0, 0.2 ) ;
+   hPDiff  = new TH1F( "pdiff", "Reference Multiplicity", 100, 0.0, 0.4 ) ;
+   hDcaDiff  = new TH1F( "dcadiff", "Reference Multiplicity", 100, -0.4, 0.4 ) ;
+   hInvMass  = new TH1F( "invmass", "Reference Multiplicity", 100, mMassV0-0.08, mMassV0+0.08 ) ;
+
+   return;
+}
+
+void StMcV0Maker::initTree()
+{
+   //initialize the TTree for StV0Dst
+   mV0Tree = new TTree("McV0PicoDst","McV0PicoDst from StMcV0Maker");
+
+   mV0Tree->SetDirectory(v0tree_output);
+
+   mV0Tree->Branch("runnumber",&mV0Dst.runnumber,"runnumber/I");
+   mV0Tree->Branch("evtnumber",&mV0Dst.evtnumber,"evtnumber/I");
+   mV0Tree->Branch("nrefmult",&mV0Dst.nrefmult,"nrefmult/I");
+   mV0Tree->Branch("nrefmultftpceast",&mV0Dst.nrefmultftpceast,"nrefmultftpceast/I");
+   mV0Tree->Branch("primvertexX",&mV0Dst.primvertexX,"primvertexX/F");
+   mV0Tree->Branch("primvertexY",&mV0Dst.primvertexY,"primvertexY/F");
+   mV0Tree->Branch("primvertexZ",&mV0Dst.primvertexZ,"primvertexZ/F");
+   mV0Tree->Branch("magn",&mV0Dst.magn,"magn/F");
+   mV0Tree->Branch("nmcv0",&mV0Dst.nmcv0,"nmcv0/I");
+   mV0Tree->Branch("nv0",&mV0Dst.nv0,"nv0/I");
+
+   mV0Tree->Branch("mcv0pt",mV0Dst.mcv0pt,"mcv0pt[nmcv0]/F");
+   mV0Tree->Branch("mcv0px",mV0Dst.mcv0px,"mcv0px[nmcv0]/F");
+   mV0Tree->Branch("mcv0py",mV0Dst.mcv0py,"mcv0py[nmcv0]/F");
+   mV0Tree->Branch("mcv0pz",mV0Dst.mcv0pz,"mcv0pz[nmcv0]/F");
+   mV0Tree->Branch("mcv0rapidity",mV0Dst.mcv0rapidity,"mcv0rapidity[nmcv0]/F");
+   mV0Tree->Branch("mcv0id",mV0Dst.mcv0id,"mcv0id[nmcv0]/I");
+   mV0Tree->Branch("mcv0x",mV0Dst.mcv0x,"mcv0x[nmcv0]/F");
+   mV0Tree->Branch("mcv0y",mV0Dst.mcv0y,"mcv0y[nmcv0]/F");
+   mV0Tree->Branch("mcv0z",mV0Dst.mcv0z,"mcv0z[nmcv0]/F");
+
+   mV0Tree->Branch("v0mcid",mV0Dst.v0mcid,"v0mcid[nv0]/I");
+   mV0Tree->Branch("v0mcstverid",mV0Dst.v0mcstverid,"v0mcstverid[nv0]/I");
+   mV0Tree->Branch("v0mass",mV0Dst.v0mass,"v0mass[nv0]/F");
+   mV0Tree->Branch("v0pt",mV0Dst.v0pt,"v0pt[nv0]/F");
+   mV0Tree->Branch("v0rapidity",mV0Dst.v0rapidity,"v0rapidity[nv0]/F");
+   mV0Tree->Branch("v0eta",mV0Dst.v0eta,"v0eta[nv0]/F");
+   mV0Tree->Branch("v0x",mV0Dst.v0x,"v0x[nv0]/F");
+   mV0Tree->Branch("v0y",mV0Dst.v0y,"v0y[nv0]/F");
+   mV0Tree->Branch("v0z",mV0Dst.v0z,"v0z[nv0]/F");
+   mV0Tree->Branch("v0px",mV0Dst.v0px,"v0px[nv0]/F");
+   mV0Tree->Branch("v0py",mV0Dst.v0py,"v0py[nv0]/F");
+   mV0Tree->Branch("v0pz",mV0Dst.v0pz,"v0pz[nv0]/F");
+   mV0Tree->Branch("v0declen",mV0Dst.v0declen,"v0declen[nv0]/F");
+   mV0Tree->Branch("v0dca",mV0Dst.v0dca,"v0dca[nv0]/F");
+   mV0Tree->Branch("v0dca2d",mV0Dst.v0dca2d,"v0dca2d[nv0]/F");
+   mV0Tree->Branch("dau1id",mV0Dst.dau1id,"dau1id[nv0]/I");
+   mV0Tree->Branch("dau2id",mV0Dst.dau2id,"dau2id[nv0]/I");
+   mV0Tree->Branch("dau1dca",mV0Dst.dau1dca,"dau1dca[nv0]/F");
+   mV0Tree->Branch("dau1dca2d",mV0Dst.dau1dca2d,"dau1dca2d[nv0]/F");
+   mV0Tree->Branch("dau1nhits",mV0Dst.dau1nhits,"dau1nhits[nv0]/I");
+   mV0Tree->Branch("dau1dedx",mV0Dst.dau1dedx,"dau1dedx[nv0]/F");
+   mV0Tree->Branch("dau1nsigma",mV0Dst.dau1nsigma,"dau1nsigma[nv0]/F");
+   mV0Tree->Branch("dau1pt",mV0Dst.dau1pt,"dau1pt[nv0]/F");
+   mV0Tree->Branch("dau1px",mV0Dst.dau1px,"dau1px[nv0]/F");
+   mV0Tree->Branch("dau1py",mV0Dst.dau1py,"dau1py[nv0]/F");
+   mV0Tree->Branch("dau1pz",mV0Dst.dau1pz,"dau1pz[nv0]/F");
+   mV0Tree->Branch("dau1tpc",mV0Dst.dau1tpc,"dau1tpc[nv0]/I");
+   mV0Tree->Branch("dau1ssd",mV0Dst.dau1ssd,"dau1ssd[nv0]/I");
+   mV0Tree->Branch("dau1svt",mV0Dst.dau1svt,"dau1svt[nv0]/I");
+   mV0Tree->Branch("dau2dca",mV0Dst.dau2dca,"dau2dca[nv0]/F");
+   mV0Tree->Branch("dau2dca2d",mV0Dst.dau2dca2d,"dau2dca2d[nv0]/F");
+   mV0Tree->Branch("dau2nhits",mV0Dst.dau2nhits,"dau2nhits[nv0]/I");
+   mV0Tree->Branch("dau2dedx",mV0Dst.dau2dedx,"dau2dedx[nv0]/F");
+   mV0Tree->Branch("dau2nsigma",mV0Dst.dau2nsigma,"dau2nsigma[nv0]/F");
+   mV0Tree->Branch("dau2pt",mV0Dst.dau2pt,"dau2pt[nv0]/F");
+   mV0Tree->Branch("dau2px",mV0Dst.dau2px,"dau2px[nv0]/F");
+   mV0Tree->Branch("dau2py",mV0Dst.dau2py,"dau2py[nv0]/F");
+   mV0Tree->Branch("dau2pz",mV0Dst.dau2pz,"dau2pz[nv0]/F");
+   mV0Tree->Branch("dau2tpc",mV0Dst.dau2tpc,"dau2tpc[nv0]/I");
+   mV0Tree->Branch("dau2ssd",mV0Dst.dau2ssd,"dau2ssd[nv0]/I");
+   mV0Tree->Branch("dau2svt",mV0Dst.dau2svt,"dau2svt[nv0]/I");
+   mV0Tree->Branch("dca1to2",mV0Dst.dca1to2,"dca1to2[nv0]/F");
+
+   return;
+}
+
+Int_t StMcV0Maker::Init( )
+{
+  // setup the constants according to mV0Type
+  initConst();
+
+  // initialize parameters (cuts)
+  initParam();
+  
+  // Create Histogram output file
+  if(mHistogramOutputFileName == "") { 
+     //CAUTION: ALWAYS USE { } HERE!!! LOG_XXX is a if()xxx macro!!!
+     LOG_ERROR << "StMcV0Maker: Please specify the histrogram output file" <<endm;
+     exit(-1);
+  }
+  else {
+     histogram_output = new TFile( mHistogramOutputFileName, "recreate" ) ;  
+  }
+  // Book histograms
+  initHisto();
+  
+  // Create V0 Tree output file
+  if(mV0TreeOutputFileName == "") {
+     LOG_WARN << "StMcV0Maker: The V0 tree output file is not specified! output is smeared!" <<endm;
+  }
+  else {
+     v0tree_output = new TFile( mV0TreeOutputFileName, "recreate" ) ;
+     // Create V0 Tree
+     initTree();
+  }
+
+  // Clear daughter vectors.
+  mDauDcaVec1.clear();
+  mDauDcaVec2.clear();
+  mDauVec1.clear();
+  mDauVec2.clear();
+  return kStOK ; 
+}
+
+Int_t StMcV0Maker::Make( )
+{ // Do each event
+   
+  if(GetDebug()) LOG_QA<<"in StMcV0Maker::Make"<<endm;
+  // Do some cleaning here, used for StXiMaker or other subsequent makers
+  mV0Dst.nmcv0 = 0;
+  mV0Dst.nv0 = 0;
+  mPassEventCut = false;
+
+  // Get 'event' data 
+  //StMuEvent* muEvent      =  mMuDstMaker->muDst()->event() ;
+  StEvent* event = (StEvent*) GetInputDS("StEvent");
+  StMcEvent* mcEvent = (StMcEvent*) GetDataSet("StMcEvent");
+  StAssociationMaker* assocMaker = (StAssociationMaker*) GetMaker("StAssociationMaker");
+  
+  //>>>
+  if (!event) return kStOK;
+  if (!mcEvent) return kStOK;
+  if (!assocMaker) return kStOK;
+
+  rcTrackMapType*   theRcTrackMap = assocMaker->rcTrackMap();
+
+  //>>> jitter abort??!
+
+  hNPrimVertex -> Fill( event->numberOfPrimaryVertices() );
+  // Cut on the number of vertices in the event.  On old tapes, no-vertex gets reported as VtxPosition=(0,0,0).
+  // Skip events that do not have a primary vertex. the small value '1e-5' is ok for hard coding.
+  StPrimaryVertex* primaryVertex = event->primaryVertex();
+  if (!(event->primaryVertex())) {
+     cout<<"MC_hyperon_reconstruction: no primary vertex; skipping event."<<endl;
+     return kStWarn;
+  }
+  if(fabs(primaryVertex->position().x())<1e-5 && fabs(primaryVertex->position().y())<1e-5 && fabs(primaryVertex->position().z())<1e-5 ){
+     cout<<"MC_hyperon_reconstruction: primary vertex=0; skipping event."<<endl;
+     return kStWarn;
+  }
+  
+  // further selection on events. find qualified events!!
+  // triggerid, skip events that do not comply with the required trigger id.
+  //if ( !event->triggerIdCollection()->nominal()->isTrigger(cutTriggerIdEq) ) return kStOK ; 
+  /*
+  if (!muEvent) return kStOK;
+  */
+  if ( !event->triggerIdCollection()->nominal()->isTrigger(290001) && !event->triggerIdCollection()->nominal()->isTrigger(290004)) return kStOK ;
+
+  // possible duplicate events.
+  /*
+  if ( mMuDstMaker->muDst()->numberOfPrimaryTracks() == mTestNTrack && mEventsProcessed !=0 && mTestVZ !=0 &&  muEvent->primaryVertexPosition().z() == mTestVZ ) {
+     LOG_WARN << mEventsProcessed <<" "<<"seems a duplicated event!"<<endm;
+     return kStOK ;
+  }
+  mTestVZ = muEvent->primaryVertexPosition().z();
+  mTestNTrack = mMuDstMaker->muDst()->numberOfPrimaryTracks();
+  */
+ 
+  unsigned int refmultiplicity = uncorrectedNumberOfPrimaries( *event );
+  // Fill some QA plots
+  hVertexZ -> Fill( primaryVertex->position().z() ) ; // Make histogram of the vertex Z distribution
+  hNRefMult -> Fill( refmultiplicity );		
+
+  // cut on vertexZ
+  if (fabs(primaryVertex->position().z()) > cutAbsVertexZLeEq ) return kStOK ;
+  mV0Dst.primvertexX = primaryVertex->position().x();
+  mV0Dst.primvertexY = primaryVertex->position().y();
+  mV0Dst.primvertexZ = primaryVertex->position().z();
+
+  // cut on centrality or reference multiplicity.
+  if ( refmultiplicity ) {}   //TODO: need to check whether this is the same as in old code. the old code might ignore the case of pile-up.
+  mV0Dst.nrefmult = refmultiplicity;
+  mV0Dst.nrefmultftpceast = uncorrectedNumberOfFtpcEastPrimaries( *event );
+  mV0Dst.runnumber = event->info()->runId();
+  mV0Dst.evtnumber = event->info()->id();
+
+  mPassEventCut = true;
+  // Do 'event' analysis based on event data 
+
+  // Record some information...
+  hSelectNRefMult -> Fill( refmultiplicity ); //this is an ESSENTIAL histogram to record the total number of events for certain centrality. always make sure it is filled AFTER event selection! added: not important for embedding analysis.
+  
+  Double_t magn = event->runInfo()->magneticField();	
+  mV0Dst.magn = magn;
+  
+  // Record the MC track information here 
+  StSPtrVecMcTrack& McTrack = mcEvent->tracks();
+  int Mctrackcounter = 0;
+  for(unsigned int nMc=0; nMc < McTrack.size(); nMc++){
+     cout<<"MC Geant ID: "<< McTrack[nMc]->geantId() <<endl;
+     if(McTrack[nMc]->parent()){
+	  cout<<"Parent: "<< McTrack[nMc]->parent()->geantId() <<endl;
+	  if(McTrack[nMc]->parent()->stopVertex())cout<<"Stop vertex radius: "<<McTrack[nMc]->parent()->stopVertex()->position().mag()<<endl;
+     }
+     
+     if(McTrack[nMc]->geantId()!=mGeantIDV0)continue;
+     mV0Dst.mcv0pt[Mctrackcounter] = McTrack[nMc]->pt();
+     mV0Dst.mcv0px[Mctrackcounter] = McTrack[nMc]->momentum().x();
+     mV0Dst.mcv0py[Mctrackcounter] = McTrack[nMc]->momentum().y();
+     mV0Dst.mcv0pz[Mctrackcounter] = McTrack[nMc]->momentum().z();
+     mV0Dst.mcv0rapidity[Mctrackcounter] = McTrack[nMc]->rapidity();
+     mV0Dst.mcv0id[Mctrackcounter] = McTrack[nMc]->key();
+     //CAUTION: some v0 mc tracks do not have stopVertex for some reason!
+     mV0Dst.mcv0x[Mctrackcounter] = McTrack[nMc]->startVertex()->position().x();
+     mV0Dst.mcv0y[Mctrackcounter] = McTrack[nMc]->startVertex()->position().y();
+     mV0Dst.mcv0z[Mctrackcounter] = McTrack[nMc]->startVertex()->position().z();
+     Mctrackcounter++;
+  }
+  mV0Dst.nmcv0 = Mctrackcounter;
+
+  // Get 'track' data, make cuts on tracks, do physics analysis, histogram results.
+  StSPtrVecTrackNode& rcTrackNodes = event->trackNodes();
+  unsigned int Loopsize =  rcTrackNodes.size();
+  
+  for(unsigned int i = 0; i < Loopsize; i++){             // Main loop for Iterating over tracks
+
+     StTrackNode* trkNode = rcTrackNodes[i];
+     StGlobalTrack* rcTrack = dynamic_cast<StGlobalTrack*>(trkNode->track(global));
+
+     int MC=0;
+     if(theRcTrackMap){
+	  pair<rcTrackMapIter,rcTrackMapIter> rcTrackBounds = theRcTrackMap->equal_range(rcTrack);
+	  for (rcTrackMapIter rctrkIter1 =  rcTrackBounds.first; rctrkIter1!= rcTrackBounds.second; rctrkIter1++) MC++;
+     }
+     if(MC==0)continue;	//this rc track if not from mc track. 
+     cout<<"HI, I'M MCTRACK!!"<<endl;
+
+     hPt -> Fill( rcTrack->geometry()->momentum().perp() ) ; //at dca to PV, for a global rcTrack, this value is useless. anyway, the pt value is supposed to be the same anywhere.
+     //double eta = rcTrack->eta();		  //at dca to PV
+     //double phi = rcTrack->phi();		  //at dca to PV
+     short flag = rcTrack->flag();
+     unsigned short nHits = rcTrack->detectorInfo()->numberOfPoints();
+     //unsigned short nHits = rcTrack->detectorInfo()->numberOfPoints(kTpcId);
+     unsigned short nHitsFit = rcTrack->fitTraits().numberOfFitPoints(kTpcId);
+     short charge = rcTrack->geometry()->charge();
+     //StThreeVectorF p = rcTrack->p();	  //at dca to PV
+     //StThreeVectorF origin = rcTrack->firstPoint();  //? NOT SURE whether firstPoint from detectorinfo is the same as helix.orgin()!!!
+     //double nsigmapion = rcTrack->nSigmaPion();
+     //double nsigmaproton = rcTrack->nSigmaProton();
+     //double nsigmakaon = rcTrack->nSigmaKaon();
+     //double nsigmaelectron = rcTrack->nSigmaElectron();
+     //double dedx = rcTrack->dEdx();
+
+     StPhysicalHelixD helix = rcTrack->geometry()->helix(); //inner helix. good for dca to PV.
+     StThreeVectorD p = helix.momentum(magn*kilogauss);    //momentum at origin
+     StThreeVectorD origin = helix.origin();  //origin of helix
+     double pt = p.perp();
+
+     //some checks.
+     hPtDiff -> Fill( rcTrack->geometry()->momentum().perp() - p.perp() ) ; 
+     hOrDiff -> Fill( (rcTrack->detectorInfo()->firstPoint() - origin).mag() ) ; 
+     hPDiff -> Fill( fabs(rcTrack->geometry()->momentum().mag() - p.mag()) ) ; 
+     //comments: there are difference between the values above. But they seem to be acceptably small!
+
+     /*
+     int hrot;		//helicity of helix, sign of -charge*magn
+     if (-charge*magn > 0) hrot = 1;
+     else hrot = -1;
+
+     double nsigma;
+     if(charge == mCharge1) {
+	  if(mV0Type == kLambda || mV0Type == kAntiLambda) nsigma = nsigmaproton;
+	  else if(mV0Type == kKs) nsigma = nsigmapion;
+	  else nsigma = nsigmaelectron;
+     }
+     else {
+	  if(mV0Type != kPhoton)  nsigma = nsigmapion;
+	  else nsigma = nsigmaelectron;
+     }
+     */
+
+     //if(rcTrack->vertexIndex()!=StMuDst::currentVertexIndex())continue;
+     //if you want to use rcTrack->dca(), turn this on. if it is not turned on, that function crashes.
+     //OK. let's cut rcTracks
+     //if(nHitsFit<=cutNHitsGr)continue;
+     if(nHits<=cutNHitsGr)continue;
+     if(flag <=0  )continue; //or <=0 ?
+     //if(rcTrack->bad() )continue; 
+     if(abs(charge)!=1) continue;
+     if(pt<cutPtGrEq)continue; //should be larger. like 0.15 or 0.2
+
+     if(charge == mCharge1){
+	  //record the first daughter 
+	  //fill the vector
+	  StPhysicalHelixD helix = rcTrack->geometry()->helix(); //inner helix. good for dca to PV.
+	  double pathlength = helix.pathLength(primaryVertex->position(), false); // do scan periods. NOTE: the default is false. this is not necessary for rcTracks with pt>0.15GeV/c
+	  StThreeVectorF dca = helix.at(pathlength)-primaryVertex->position();
+	  
+	  //some tests on dca functions.
+	  //StThreeVectorF dca1 = rcTrack->dca(muEvent->primaryVertexPosition()); //it simply crash!
+	  //StThreeVectorF dca11 = rcTrack->dcaGlobal(); //it doesn't crash, but give some zero values
+	  //hDcaDiff -> Fill((dca1-dca11).mag());
+	  //LOG_QA<<"KK "<<(dca1-dca11).mag()<<" "<<dca1.mag()<<endm;
+	  
+	  //if(getDcaToPV(rcTrack, muEvent->primaryVertexPosition()) - dca.mag() > 0.4)
+	  //LOG_QA << getDcaToPV(rcTrack, muEvent->primaryVertexPosition()) << " "<< dca.mag()<<endm;
+	  //if(getDcaToPV(rcTrack, muEvent->primaryVertexPosition()) < 2)
+	  //hDcaDiff -> Fill(getDcaToPV(rcTrack, muEvent->primaryVertexPosition())-dca.mag());
+	  
+	  //double dca = getDcaToPV(rcTrack, muEvent->primaryVertexPosition());
+	  
+	  //CONCLUSION: StHelix method seems more strict, always use it instead of getDcaToPV!!!
+	  if(dca.mag()<cutDca1GrEq)continue;
+	  //if(dca.mag()>cutDca1LeEq)continue;
+	  mDauDcaVec1.push_back(dca.mag());
+	  mDauVec1.push_back(rcTrack);
+     }
+
+     if(charge == mCharge2){
+	  //record the second daughter
+	  StPhysicalHelixD helix = rcTrack->geometry()->helix(); //inner helix. good for dca to PV.
+
+	  StThreeVectorF pv = primaryVertex->position();
+	  /*
+	  //rotate transverse coordinates and momenta for background estimation
+	  if(mRotate){
+	     StThreeVectorD p1 = helix.momentum(magn*kilogauss);    //momentum at origin
+	     StThreeVectorD x1 = helix.origin();    //origin
+	     p1.setX(-p1.x());
+	     p1.setY(-p1.y());
+	     x1.setX(-(x1.x()-pv.x())+pv.x());
+	     x1.setY(-(x1.y()-pv.y())+pv.y());
+	     StPhysicalHelixD helixtmp(p1, x1, magn*kilogauss, rcTrack->charge());
+	     helix = helixtmp;
+	  }
+	  */
+	  
+	  double pathlength = helix.pathLength(primaryVertex->position(), false); // do scan periods. NOTE: the default is false.
+	  StThreeVectorF dca = helix.at(pathlength)-primaryVertex->position();
+
+	  //LOG_QA << getDcaToPV(rcTrack, muEvent->primaryVertexPosition()) << " "<< dca.mag()<<endm;
+	  //if(getDcaToPV(rcTrack, muEvent->primaryVertexPosition()) < 2)
+	  //hDcaDiff -> Fill(getDcaToPV(rcTrack, muEvent->primaryVertexPosition())-dca.mag());
+
+	  //double dca = getDcaToPV(rcTrack, muEvent->primaryVertexPosition());
+
+	  if(dca.mag()<cutDca2GrEq)continue;
+	  //if(dca.mag()>cutDca2LeEq)continue;
+	  mDauDcaVec2.push_back(dca.mag());
+	  mDauVec2.push_back(rcTrack);
+     }
+  }
+
+  assert(mDauVec1.size() == mDauDcaVec1.size() && mDauVec2.size() == mDauDcaVec2.size());
+  cout<<mDauDcaVec1.size()<<" "<<mDauDcaVec2.size()<<endl;
+  
+  //reconstruct V0
+  int nV0 = 0;
+  
+  for(unsigned int i=0;i<mDauVec1.size();i++){
+     //get proton track info here
+     //cut them before in track selection
+     StGlobalTrack * track1 = mDauVec1[i];
+     StPhysicalHelixD helix1 = track1->geometry()->helix(); //inner helix. good for dca to PV.
+     StThreeVectorD p1 = helix1.momentum(magn*kilogauss);    //momentum at origin
+     //StThreeVectorD origin1 = helix1.origin();  //origin of helix
+     double pt1 = p1.perp();
+     double dca1 = mDauDcaVec1[i];
+
+     for(unsigned int j=0;j<mDauVec2.size();j++){
+	  //get pion track info here
+	  StGlobalTrack * track2 = mDauVec2[j];
+	  if(track2->key() == track1->key())continue;  //for same sign
+	  StPhysicalHelixD helix2 = track2->geometry()->helix(); //inner helix. good for dca to PV.
+	  
+	  //before we do cuts, we should make sure the two tracks are from the same v0
+	  StSPtrVecMcVertex& mcVertices = mcEvent->vertices();
+	  mcTrackMapType*   theMcTrackMap = assocMaker->mcTrackMap();
+	  StMcVertexIterator VerSave;
+	  int count = 0;
+	  for (StMcVertexIterator mcVertexIt = mcVertices.begin();
+		  mcVertexIt != mcVertices.end(); mcVertexIt++) {
+	     const StMcTrack* parent = (*mcVertexIt)->parent();
+	     if (!parent) continue;
+	     if(parent->geantId()!=mGeantIDV0)continue;
+	     StSPtrVecMcTrack& Daughters = (*mcVertexIt)->daughters();
+	     StMcTrack *Proton = NULL;
+	     StMcTrack *Pion = NULL;
+	     for (StMcTrackIterator DTrackIt = Daughters.begin();
+		     DTrackIt != Daughters.end(); DTrackIt++) {
+		  if ((*DTrackIt)->geantId()==mGeantID1)
+		     Proton = (*DTrackIt);
+		  else if ((*DTrackIt)->geantId()==mGeantID2)
+		     Pion = (*DTrackIt);
+	     }
+	     pair<mcTrackMapIter,mcTrackMapIter> mcTrackBounds1 =
+		  theMcTrackMap->equal_range(Proton);
+	     pair<mcTrackMapIter,mcTrackMapIter> mcTrackBounds2 =
+		  theMcTrackMap->equal_range(Pion);
+
+	     for (mcTrackMapIter mctrkIter1 =  mcTrackBounds1.first; mctrkIter1!= mcTrackBounds1.second; mctrkIter1++) {
+		  StGlobalTrack *rcProton=(StGlobalTrack *)(*mctrkIter1).second->partnerTrack();
+		  if(rcProton->key()!=track1->key())continue;
+		  for(mcTrackMapIter mctrkIter2 =  mcTrackBounds2.first; mctrkIter2!= mcTrackBounds2.second; mctrkIter2++) {
+		     StGlobalTrack *rcPion=(StGlobalTrack *)(*mctrkIter2).second->partnerTrack();
+		     if(rcPion->key()!=track2->key())continue;
+		     count++;
+		     VerSave=mcVertexIt;
+		  }//match pion
+	     }//match proton
+	  }//mcVertex
+	  if(count==0)continue; //these two mc tracks are not from the same V0 McVertex
+	  //FIXME: check the value of count, should not be larger than 1
+	  //check the distance of v0 RC decay vertex and v0 Mc decay vertex
+	  
+	  StThreeVectorF pv = primaryVertex->position();
+	  /*
+	  if(mRotate){
+	     StThreeVectorD tp1 = helix2.momentum(magn*kilogauss);    //momentum at origin
+	     StThreeVectorD tx1 = helix2.origin();    //origin
+	     tp1.setX(-tp1.x());
+	     tp1.setY(-tp1.y());
+	     tx1.setX(-(tx1.x()-pv.x())+pv.x());
+	     tx1.setY(-(tx1.y()-pv.y())+pv.y());
+	     StPhysicalHelixD helixtmp(tp1, tx1, magn*kilogauss, track2->charge());
+	     helix2 = helixtmp;
+	  }
+	  */
+	  
+	  StThreeVectorD p2 = helix2.momentum(magn*kilogauss);    //momentum at origin
+	  double pt2 = p2.perp();
+	  double dca2 = mDauDcaVec2[j];
+	  //cut them before in track selection
+	  
+	  StThreeVectorF xv0, op1, op2;
+	  double dca1to2;
+	  //double stdca1to2;
+	  StThreeVectorF ox1,ox2;
+	  if(!mDcaAlgoLong){
+	     pair<double,double> tmps = helix1.pathLengths(helix2); 
+	     //StThreeVectorD ox1 = helix1.at(tmps.first);
+	     //StThreeVectorD ox2 = helix2.at(tmps.second);
+	     ox1 = helix1.at(tmps.first);
+	     ox2 = helix2.at(tmps.second);
+	     //stdca1to2 = (ox1-ox2).mag();
+	     dca1to2 = (ox1-ox2).mag();
+	     xv0 = (ox1 + ox2)/2.;
+	     op1 = helix1.momentumAt(tmps.first, magn*kilogauss);
+	     op2 = helix2.momentumAt(tmps.second, magn*kilogauss);
+	  }
+
+	  //kStHelixDca = true;
+	  //kMinimize = true;
+	  //StHelix method above is VERY SLOW. use it only for checking the consistency of 
+	  //long's code
+	  if(mDcaAlgoLong) dca1to2 = closestDistance(helix1, helix2, magn, pv, xv0, op1, op2);
+	  //cut on dca1to2
+	  //if(stdca1to2 <= cutDca1to2LeEq)
+	  //   LOG_QA << stdca1to2<<" "<<dca1to2<<endm;
+	  //LOG_QA << dca1to2<<endm;
+	  if(dca1to2 > cutDca1to2LeEq) continue;
+
+	  double oe1 = sqrt(op1.mag2() + mMass1*mMass1);
+	  double oe2 = sqrt(op2.mag2() + mMass2*mMass2);
+	  double v0mass = sqrt(mMass1*mMass1 + mMass2*mMass2 + 2.*oe1*oe2 - 2.*op1.dot(op2));
+	  //cut on v0mass
+	  if(fabs(v0mass-mMassV0) > cutV0MassWidthLeEq)continue;
+
+	  StThreeVectorD pv0 = op1 + op2;
+	  StThreeVectorD xv0toPV = xv0 - pv;
+
+	  //helix of v0: straight line
+	  StPhysicalHelixD helixv0(pv0,xv0,0,0);
+
+	  //pthead, ptarm cut
+	  double pthead1 = op1.dot(pv0)/pv0.mag();
+	  double pthead2 = op2.dot(pv0)/pv0.mag();
+	  double ptarm   = sqrt(op1.mag2()-pthead1*pthead1);
+	  if(mV0Type!=kKs && mV0Type!=kPhoton ){
+	     //if(ptarm> cutDauPtArmLeEq || fabs((pthead1-pthead2)/(pthead1+pthead2))> cutAbsDausPtShoulderDiffLeEq )continue;
+	  }
+
+	  //forward decay cut
+	  double ang1 = op1.x()*xv0toPV.x() + op1.y()*xv0toPV.y();
+	  double ang2 = op2.x()*xv0toPV.x() + op2.y()*xv0toPV.y();
+	  if(mV0Type!=kKs && mV0Type!=kPhoton ){
+	     //if(ang1<=cutDau1DecAngGr || ang2<=cutDau2DecAngGr)continue;
+	  }
+	  
+	  //r dot p for v0. cut on it. should be larger than 0. 
+	  double rdotp = xv0toPV.dot(pv0) ;
+	  if(mV0Type!=kPhoton && rdotp<=cutV0rdotpGr)continue;
+	  
+	  //calculate v0 to PV dca. v0 carry no charge. straight line. cut on dca
+	  double dcav0toPV = rdotp*rdotp/pv0.mag2();
+	  dcav0toPV = sqrt( xv0toPV.mag2() - dcav0toPV);
+	  if(dcav0toPV>=cutDcaV0Le)continue;
+
+	  //cut on decay length
+	  double v0decaylength = xv0toPV.mag();
+	  if(v0decaylength < cutV0DecLenGrEq )continue;
+
+	  if(mV0Type==kPhoton && acos(op1.dot(op2)/op1.mag()/op2.mag()) > cutDau1Dau2Ang3DLe)continue;
+
+	  if(mV0Type==kPhoton && fabs(helix1.dipAngle()-helix2.dipAngle()) > cutDau1Dau2DipAngDiffLe)continue;
+
+	  //cut on sinth, or theta
+	  double sinth = (xv0toPV.cross(pv0)).mag()/xv0toPV.mag()/pv0.mag();
+	  double theta = atan2(sinth, rdotp/xv0toPV.mag()/pv0.mag()); //theta range: from 0 to pi
+
+	  mV0Dst.v0mcid[nV0] = (*VerSave)->parent()->key();
+	  mV0Dst.v0mcstverid[nV0] = (*VerSave)->parent()->startVertex()->key()+1;
+	  mV0Dst.v0mass[nV0] = v0mass;
+	  mV0Dst.v0pt[nV0]   = pv0.perp();
+	  mV0Dst.v0rapidity[nV0]    = log( (sqrt(v0mass*v0mass+pv0.mag2()) + pv0.z())/sqrt(v0mass*v0mass+pv0.perp2()));
+	  mV0Dst.v0eta[nV0]    = 0.5*log( (pv0.mag() + pv0.z())/(pv0.mag() - pv0.z()) );
+	  mV0Dst.v0x[nV0]	     = xv0.x();
+	  mV0Dst.v0y[nV0]	     = xv0.y();
+	  mV0Dst.v0z[nV0]	     = xv0.z();
+	  mV0Dst.v0px[nV0]     = pv0.x();
+	  mV0Dst.v0py[nV0]     = pv0.y();
+	  mV0Dst.v0pz[nV0]     = pv0.z();
+	  mV0Dst.v0declen[nV0] = v0decaylength;
+	  mV0Dst.v0dca[nV0]    = dcav0toPV;
+	  mV0Dst.v0dca2d[nV0]  = helixv0.geometricSignedDistance(pv.x(),pv.y());
+	  mV0Dst.dau1id[nV0]   = track1->key();
+	  mV0Dst.dau2id[nV0]   = track2->key();
+	  //cout<<track1->key()<<" "<<track2->key()<<" "<<(*VerSave)->parent()->key()<<endl;
+	  //cout<<"fit points: "<<track1->fitTraits().numberOfFitPoints(kTpcId)<<" "<<track2->fitTraits().numberOfFitPoints(kTpcId)<<endl;
+	  //cout<<"eta: "<<op1.pseudoRapidity()<<" "<<op2.pseudoRapidity()<<endl;
+	  mV0Dst.dau1dca[nV0]  = dca1;
+	  mV0Dst.dau1dca2d[nV0]  = helix1.geometricSignedDistance(pv.x(),pv.y());
+	  //mV0Dst.dau1nhits[nV0]= track1->detectorInfo()->numberOfPoints(kTpcId);
+	  mV0Dst.dau1nhits[nV0]= track1->detectorInfo()->numberOfPoints();
+	  mV0Dst.dau1dedx[nV0] = 0;
+	  //mV0Dst.dau1nsigma[nV0] = (mV0Type!=kKs)? ((mV0Type!=kPhoton)?track1->nSigmaProton():track1->nSigmaElectron()) : track1->nSigmaPion();
+	  mV0Dst.dau1nsigma[nV0] = 0;
+	  mV0Dst.dau1pt[nV0]   = op1.perp();
+	  mV0Dst.dau1px[nV0]   = op1.x();
+	  mV0Dst.dau1py[nV0]   = op1.y();
+	  mV0Dst.dau1pz[nV0]   = op1.z();
+	  mV0Dst.dau1tpc[nV0]  = track1->fitTraits().numberOfFitPoints(kTpcId);
+	  mV0Dst.dau1ssd[nV0]  = track1->fitTraits().numberOfFitPoints(kSsdId);
+	  mV0Dst.dau1svt[nV0]  = track1->fitTraits().numberOfFitPoints(kSvtId);
+	  mV0Dst.dau2dca[nV0]  = dca2;
+	  mV0Dst.dau2dca2d[nV0]  = helix2.geometricSignedDistance(pv.x(),pv.y());
+	  //mV0Dst.dau2nhits[nV0]= track2->detectorInfo()->numberOfPoints(kTpcId);
+	  mV0Dst.dau2nhits[nV0]= track2->detectorInfo()->numberOfPoints();
+	  mV0Dst.dau2dedx[nV0] = 0;
+	  //mV0Dst.dau2nsigma[nV0] = (mV0Type!=kPhoton)? track2->nSigmaPion():track1->nSigmaElectron();
+	  mV0Dst.dau2nsigma[nV0] = 0;
+	  mV0Dst.dau2pt[nV0]   = op2.perp();
+	  mV0Dst.dau2px[nV0]   = op2.x();
+	  mV0Dst.dau2py[nV0]   = op2.y();
+	  mV0Dst.dau2pz[nV0]   = op2.z();
+	  mV0Dst.dau2tpc[nV0]  = track2->fitTraits().numberOfFitPoints(kTpcId);
+	  mV0Dst.dau2ssd[nV0]  = track2->fitTraits().numberOfFitPoints(kSsdId);
+	  mV0Dst.dau2svt[nV0]  = track2->fitTraits().numberOfFitPoints(kSvtId);
+	  mV0Dst.dca1to2[nV0]  = dca1to2;
+
+	  nV0 ++;
+
+	  hInvMass->Fill(v0mass);
+	  //mV0Vec.push_back(v0data);
+
+     }
+  }
+
+  mV0Dst.nv0 = nV0;
+
+  if(mV0Dst.nmcv0 > 0 && mV0Tree) mV0Tree->Fill();
+  //dump v0 vector into a TTree
+  
+  mEventsProcessed++ ;
+  if(mEventsProcessed%20)v0tree_output->Flush();
+  //LOG_QA << mDauVec1.size() <<" "<< mDauVec2.size() <<" "<< mV0Dst.nv0<<" "<<mV0Dst.nmcv0<<endm;
+  //cout << mDauVec1.size() <<" "<< mDauVec2.size() <<" "<< mV0Dst.nv0<<" "<<mV0Dst.nmcv0<<endl;
+  mDauDcaVec1.clear();
+  mDauDcaVec2.clear();
+  mDauVec1.clear();
+  mDauVec2.clear();
+  //mV0Vec.clear();
+  return kStOK ;
+  
+}
+
+
+Int_t StMcV0Maker::Finish( )
+{ // Do once at the end the analysis
+
+  // Write histograms to disk, output miscellaneous other information
+  if(histogram_output!=NULL) histogram_output -> Write() ;   // Write all histograms to disk 
+  if(v0tree_output!=NULL) v0tree_output -> Write() ;   // Write all histograms to disk 
+
+  cout << "Total Events Processed in StMcV0Maker " << mEventsProcessed << endl ;
+
+  return kStOk ;  
+
+}
+
+
