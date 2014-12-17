@@ -2,6 +2,9 @@
 #include "StDcaService.h"
 #include "StarClassLibrary/SystemOfUnits.h"
 
+#include "StRefMultCorr.h"
+#include "CentralityMaker.h"
+
 #include <iostream>
 
 #include "StMessMgr.h"
@@ -236,6 +239,8 @@ void StMcV0Maker::initTree()
    mV0Tree->Branch("primvertexX",&mV0Dst.primvertexX,"primvertexX/F");
    mV0Tree->Branch("primvertexY",&mV0Dst.primvertexY,"primvertexY/F");
    mV0Tree->Branch("primvertexZ",&mV0Dst.primvertexZ,"primvertexZ/F");
+   mV0Tree->Branch("centBin9",&mV0Dst.centBin9,"centBin9/F");
+   mV0Tree->Branch("centBin16",&mV0Dst.centBin16,"centBin16/F");
    mV0Tree->Branch("magn",&mV0Dst.magn,"magn/F");
    mV0Tree->Branch("nmcv0",&mV0Dst.nmcv0,"nmcv0/I");
    mV0Tree->Branch("nv0",&mV0Dst.nv0,"nv0/I");
@@ -381,7 +386,7 @@ if ( !event->triggerIdCollection()->nominal()->isTrigger(340001) && !event->trig
   mTestVZ = muEvent->primaryVertexPosition().z();
   mTestNTrack = mMuDstMaker->muDst()->numberOfPrimaryTracks();
   */
- 
+  StRefMultCorr* refmultCorrUtil = new StRefMultCorr("refmult"); 
   unsigned int refmultiplicity = uncorrectedNumberOfPrimaries( *event );
   // Fill some QA plots
   hVertexZ -> Fill( primaryVertex->position().z() ) ; // Make histogram of the vertex Z distribution
@@ -399,6 +404,10 @@ if ( !event->triggerIdCollection()->nominal()->isTrigger(340001) && !event->trig
   mV0Dst.nrefmultftpceast = uncorrectedNumberOfFtpcEastPrimaries( *event );
   mV0Dst.runnumber = event->info()->runId();
   mV0Dst.evtnumber = event->info()->id();
+  refmultCorrUtil -> init(mV0Dst.runnumber);
+  refmultCorrUtil -> initEvent(mV0Dst.nrefmult, mV0Dst.primvertexZ, event -> runInfo() -> zdcCoincidenceRate());
+  mV0Dst.centBin9 = refmultCorrUtil ->  getCentralityBin9();
+  mV0Dst.centBin16 = refmultCorrUtil ->  getCentralityBin16();
 
   mPassEventCut = true;
   // Do 'event' analysis based on event data 

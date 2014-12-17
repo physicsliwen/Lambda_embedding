@@ -10,6 +10,8 @@ struct StMcV0Dst{
    float primvertexX;
    float primvertexY;
    float primvertexZ;
+   int centBin9;
+   int centBin16;
    float magn;
    int nmcv0;
    int nv0;
