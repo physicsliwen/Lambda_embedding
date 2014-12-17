@@ -1,6 +1,9 @@
 analysis/*
+.sl64_gcc447/
+.gitignore
 logfile/
 output_fp/
 output_exp/
 !analysis/*.C
 !analysis/*.txt
+test

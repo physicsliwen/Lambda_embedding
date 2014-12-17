@@ -1,1 +1,0 @@
-../../../../StRoot/StMcV0Maker/StV0Type.h

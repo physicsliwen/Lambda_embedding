@@ -1,1 +1,0 @@
-../../../../StRoot/StMcXiMaker/StXiType.h
