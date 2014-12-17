@@ -6,4 +6,4 @@ output_fp/
 output_exp/
 !analysis/*.C
 !analysis/*.txt
-test
+check.sh
