@@ -31,7 +31,8 @@ inline string stringify(int x){ ostringstream o; o << x; return o.str(); }
 TChain* ChainThem(char* filelist, char* treename, int nlist = 0, int block = 100);
 
 const int kGroup   = 1;
-const int kCentBin = 7;
+const int kCentBin = 9;
+//const int kCentBin = 7;
 const int kPtBin = 21;
 //const int kPtBin = 14;
 Double_t grpbd[kGroup+1]={0.,13060000.};
@@ -51,16 +52,17 @@ void cuts_exp_la(int nlist, int block){
    gROOT->LoadMacro("v0dst.C+");
 #endif
 
-   TChain * t = ChainThem("./picodst_exp.list","McV0PicoDst",nlist,block);
+   TChain * t = ChainThem("./picodst_exp_test.list","McV0PicoDst",nlist,block);
    if(!t){ cout<<"ERROR: no files are added to the chain!"<<endl; return; }
 
    //bound them together
    v0dst dst(t);
 
    //histograms
-   TString Dir("");
-   TString Name("mcla_exp");
-   TFile ohm(Dir+Name+stringify(nlist)+".cuts.histo.root","recreate");
+   string Dir = "";
+   string Name = "mcla_exp";
+   string temp_str = Dir + Name +stringify(nlist)+".cust.histo.root";
+   TFile ohm(temp_str.c_str(),"recreate");
 
    Float_t pdgmass = 1.115683;
    Float_t masswidth = 0.07+0.01;
@@ -112,29 +114,29 @@ TH2F * hmTwoTracknHits = new TH2F("hmTwoTracknHits","nHits of Two Tracks", 50,-0
    
    TH1F * hmIM[kCentBin][kPtBin];
    TH1F * hmIMCent[kCentBin];
-TH1F * hmTrack1[kCentBin][kPtBin];//new
-TH1F * hmTrack2[kCentBin][kPtBin];//new
+   TH1F * hmTrack1[kCentBin][kPtBin];//new
+   TH1F * hmTrack2[kCentBin][kPtBin];//new
 
    for(Int_t iIM=0; iIM<kCentBin; iIM++){
-	TString hName("hmInvMass");
-	TString hTitle("Invariant mass for ");
+	string hName = "hmInvMass";
+	string hTitle = "Invariant mass for ";
 	hName = hName + "Cent" + stringify(iIM);
 	hTitle = hTitle + "centrality bin " + stringify(iIM);
-	hmIMCent[iIM] = new TH1F(hName, hTitle, 200, pdgmass-masswidth, pdgmass+masswidth);
+	hmIMCent[iIM] = new TH1F(hName.c_str(), hTitle.c_str(), 200, pdgmass-masswidth, pdgmass+masswidth);
 	for(Int_t jIM=0; jIM<kPtBin; jIM++){
-	   TString hName("hmInvMass");
-	   TString hTitle("Invariant mass for ");
+	   string hName = "hmInvMass";
+	   string hTitle = "Invariant mass for ";
 	   hName = hName + "Cent" + stringify(iIM) + "Pt" + stringify(jIM);
 	   hTitle = hTitle + "centrality bin " + stringify(iIM) + " pt bin " + stringify(jIM);
 	   hmIM[iIM][jIM] = new TH1F(hName, hTitle, 200, pdgmass-masswidth, pdgmass+masswidth);
-           TString hHits1("Track1nHits");//new
+           string hHits1 = "Track1nHits";//new
            hHits1 = hHits1 + "Cent" + Form("%d",iIM) + "Pt" + Form("%d",jIM);//new
-           TString hHits2("Track2nHits");//new
+           string hHits2 = "Track2nHits";//new
            hHits2 = hHits2 + "Cent" + Form("%d",iIM) + "Pt" + Form("%d",jIM);//new
-           TString hHitsTitle("Track nHits ");//new
+           string hHitsTitle = "Track nHits ";//new
            hHitsTitle = hHitsTitle + "centrality bin " + Form("%d",iIM) + " pt bin " + Form("%d",jIM);//new
-           hmTrack1[iIM][jIM] = new TH1F(hHits1, hHitsTitle, 50, -0.5, 49.5);//new
-           hmTrack2[iIM][jIM] = new TH1F(hHits2, hHitsTitle, 50, -0.5, 49.5);//new
+           hmTrack1[iIM][jIM] = new TH1F(hHits1.c_str(), hHitsTitle.c_str(), 50, -0.5, 49.5);//new
+           hmTrack2[iIM][jIM] = new TH1F(hHits2.c_str(), hHitsTitle.c_str(), 50, -0.5, 49.5);//new
 
 	   wMcCount[iIM][jIM]=0;
 	   wRcCount[iIM][jIM]=0;
@@ -149,11 +151,11 @@ TH1F * hmTrack2[kCentBin][kPtBin];//new
    TH1D * hmGroup = new TH1D("hmGroup","Run Group finder",kGroup,grpbd);
    TH1F * hmCent[kGroup];
    for(Int_t i=0;i<kGroup;i++){
-      TString hName("hmCent");
+      string hName = "hmCent";
       hName = hName + stringify(i);
-      TString hTitle("Centrality bin finder for group ");
+      string hTitle = "Centrality bin finder for group ";
       hTitle = hTitle + stringify(i);
-      hmCent[i] = new TH1F(hName,hTitle,kCentBin,centbd[i]);
+      hmCent[i] = new TH1F(hName.c_str(), hTitle.c_str(), kCentBin,centbd[i]);
    }
    TH1F * hmPt = new TH1F("hmPt","Pt bin finder",kPtBin,ptbd);
 

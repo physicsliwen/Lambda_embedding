@@ -239,8 +239,8 @@ void StMcV0Maker::initTree()
    mV0Tree->Branch("primvertexX",&mV0Dst.primvertexX,"primvertexX/F");
    mV0Tree->Branch("primvertexY",&mV0Dst.primvertexY,"primvertexY/F");
    mV0Tree->Branch("primvertexZ",&mV0Dst.primvertexZ,"primvertexZ/F");
-   mV0Tree->Branch("centBin9",&mV0Dst.centBin9,"centBin9/F");
-   mV0Tree->Branch("centBin16",&mV0Dst.centBin16,"centBin16/F");
+   mV0Tree->Branch("centBin9",&mV0Dst.centBin9,"centBin9/I");
+   mV0Tree->Branch("centBin16",&mV0Dst.centBin16,"centBin16/I");
    mV0Tree->Branch("magn",&mV0Dst.magn,"magn/F");
    mV0Tree->Branch("nmcv0",&mV0Dst.nmcv0,"nmcv0/I");
    mV0Tree->Branch("nv0",&mV0Dst.nv0,"nv0/I");
