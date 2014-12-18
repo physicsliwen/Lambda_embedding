@@ -1,5 +1,5 @@
 #!/bin/tcsh
-setenv STAR_LEVEL SL14g
+setenv STAR_LEVEL SL11d
 if ( -e $GROUP_DIR/group_env.csh ) then
         source $GROUP_DIR/group_env.csh
 endif

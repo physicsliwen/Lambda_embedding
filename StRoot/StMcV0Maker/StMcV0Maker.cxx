@@ -371,7 +371,9 @@ Int_t StMcV0Maker::Make( )
   
   // further selection on events. find qualified events!!
   // triggerid, skip events that do not comply with the required trigger id.
-if ( !event->triggerIdCollection()->nominal()->isTrigger(340001) && !event->triggerIdCollection()->nominal()->isTrigger(340011) && !event->triggerIdCollection()->nominal()->isTrigger(340021)) return kStOK ;
+//if ( !event->triggerIdCollection()->nominal()->isTrigger(350003) && !event->triggerIdCollection()->nominal()->isTrigger(350013) && !event->triggerIdCollection()->nominal()->isTrigger(350023)) return kStOK ;
+
+if ( !event->triggerIdCollection()->nominal()->isTrigger(350003) && !event->triggerIdCollection()->nominal()->isTrigger(350013) && !event->triggerIdCollection()->nominal()->isTrigger(350023) && !event->triggerIdCollection()->nominal()->isTrigger(350033) && !event->triggerIdCollection()->nominal()->isTrigger(350033)) return kStOK ; 
 /*
   if (!muEvent) return kStOK;
   */
