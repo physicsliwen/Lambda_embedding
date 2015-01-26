@@ -459,7 +459,7 @@ if ( !event->triggerIdCollection()->nominal()->isTrigger(350003) && !event->trig
 	  for (rcTrackMapIter rctrkIter1 =  rcTrackBounds.first; rctrkIter1!= rcTrackBounds.second; rctrkIter1++) MC++;
      }
      if(MC==0)continue;	//this rc track if not from mc track. 
-     cout<<"HI, I'M MCTRACK!!"<<endl;
+     //cout<<"HI, I'M MCTRACK!!"<<endl;
 
      hPt -> Fill( rcTrack->geometry()->momentum().perp() ) ; //at dca to PV, for a global rcTrack, this value is useless. anyway, the pt value is supposed to be the same anywhere.
      //double eta = rcTrack->eta();		  //at dca to PV
@@ -589,7 +589,7 @@ if ( !event->triggerIdCollection()->nominal()->isTrigger(350003) && !event->trig
      //StThreeVectorD origin1 = helix1.origin();  //origin of helix
      double pt1 = p1.perp();
      double dca1 = mDauDcaVec1[i];
-
+     std::cout<<"=======================Start Reconstruction================================"<<std::endl;
      for(unsigned int j=0;j<mDauVec2.size();j++){
 	  //get pion track info here
 	  StGlobalTrack * track2 = mDauVec2[j];
@@ -605,7 +605,9 @@ if ( !event->triggerIdCollection()->nominal()->isTrigger(350003) && !event->trig
 		  mcVertexIt != mcVertices.end(); mcVertexIt++) {
 	     const StMcTrack* parent = (*mcVertexIt)->parent();
 	     if (!parent) continue;
-	     if(parent->geantId()!=mGeantIDV0)continue;
+             std::cout << ">>>>>>>>>>>>>>>>>>Right Before find the Lambda Particles<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+	     if(parent->geantId()!=mGeantIDV0) continue;
+             std::cout << "find the Lambda Particles" << std::endl;
 	     StSPtrVecMcTrack& Daughters = (*mcVertexIt)->daughters();
 	     StMcTrack *Proton = NULL;
 	     StMcTrack *Pion = NULL;
@@ -633,6 +635,7 @@ if ( !event->triggerIdCollection()->nominal()->isTrigger(350003) && !event->trig
 	     }//match proton
 	  }//mcVertex
 	  if(count==0)continue; //these two mc tracks are not from the same V0 McVertex
+          std::cout<<"????????????????????????so far so good??????????????????????????"<<std::endl;
 	  //FIXME: check the value of count, should not be larger than 1
 	  //check the distance of v0 RC decay vertex and v0 Mc decay vertex
 	  
@@ -687,6 +690,7 @@ if ( !event->triggerIdCollection()->nominal()->isTrigger(350003) && !event->trig
 	  double v0mass = sqrt(mMass1*mMass1 + mMass2*mMass2 + 2.*oe1*oe2 - 2.*op1.dot(op2));
 	  //cut on v0mass
 	  if(fabs(v0mass-mMassV0) > cutV0MassWidthLeEq)continue;
+//          std::cout<<"????????????????????????so far so good??????????????????????????"<<std::endl;
 
 	  StThreeVectorD pv0 = op1 + op2;
 	  StThreeVectorD xv0toPV = xv0 - pv;
@@ -729,6 +733,7 @@ if ( !event->triggerIdCollection()->nominal()->isTrigger(350003) && !event->trig
 	  double sinth = (xv0toPV.cross(pv0)).mag()/xv0toPV.mag()/pv0.mag();
 	  double theta = atan2(sinth, rdotp/xv0toPV.mag()/pv0.mag()); //theta range: from 0 to pi
 
+          std::cout<<"===========================Got One!!!!!=========================="<<std::endl;
 	  mV0Dst.v0mcid[nV0] = (*VerSave)->parent()->key();
 	  mV0Dst.v0mcstverid[nV0] = (*VerSave)->parent()->startVertex()->key()+1;
 	  mV0Dst.v0mass[nV0] = v0mass;
