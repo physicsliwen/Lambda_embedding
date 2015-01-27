@@ -12,3 +12,5 @@ Work Flow(this directory is processing run11 AuAu200GeV embedding data):
 2. change the run.csh the filelist
 
 3. submit the qsub_script.sh
+
+* we have to commment out the setenv STAR_LEVEL SL11d in run.csh
