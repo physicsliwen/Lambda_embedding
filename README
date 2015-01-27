@@ -5,3 +5,10 @@ Work Flow(this directory is processing run11 AuAu200GeV embedding data):
 1. just run "./submit.sh"
 
 2. in the reconstruct_mcv0.C, Block is the file number per loop processes. Nfiles is the total loops. 
+
+======================If you want to run different distribution and different particles===========
+1. change the reconstruct_mcv0.C the output directory
+
+2. change the run.csh the filelist
+
+3. submit the qsub_script.sh
