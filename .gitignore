@@ -7,3 +7,5 @@ output_exp/
 !analysis/*.C
 !analysis/*.txt
 check.sh
+submit_la.sh.o*
+submit_la.sh.e*
