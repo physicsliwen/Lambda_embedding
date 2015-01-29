@@ -1,10 +1,11 @@
 analysis/*
 .sl64_gcc447/
-.gitignore
+!.gitignore
 logfile/
 output_fp/
 output_exp/
 !analysis/*.C
+!analysis/*.h
 !analysis/*.txt
 check.sh
 submit_la.sh.o*
