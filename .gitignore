@@ -9,3 +9,5 @@ output_exp/
 check.sh
 submit_la.sh.o*
 submit_la.sh.e*
+qsub_script_la.sh.o*
+qsub_script_la.sh.e*
