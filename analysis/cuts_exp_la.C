@@ -32,11 +32,10 @@ TChain* ChainThem(char* filelist, char* treename, int nlist = 0, int block = 100
 
 const int kGroup   = 1;
 const int kCentBin = 9;
-//const int kCentBin = 7;
 const int kPtBin = 21;
 //const int kPtBin = 14;
 Double_t grpbd[kGroup+1]={0.,13060000.};
-Float_t centbd[kGroup][kCentBin+1]={{6.5,23.5,66.5,102.5,152.5,220.5,263.5,20000.}}; //from H. Masui
+//Float_t centbd[kGroup][kCentBin+1]={{6.5,23.5,66.5,102.5,152.5,220.5,263.5,20000.}}; //from H. Masui
 //Float_t centbd[kGroup][kCentBin+1]={{0.5,6.5,11.5,200.},{0.5,7.5,12.5,200.},{0.5,6.5,10.5,200.}}; //from H. Masui
 //Float_t ptbd[kPtBin+1]={0.2,0.4,0.6,0.8,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0,3.5,4.0,5.0,6.0,8.0};
 Float_t  ptbd[kPtBin+1]={0.2,0.4,0.6,0.8,1.0,1.2,1.4,1.6,1.8,2.0,2.3,2.6,3.0,3.4,3.8,4.2,4.8,5.4,6.0,7.0,8.0,10.0};
@@ -52,23 +51,27 @@ void cuts_exp_la(int nlist, int block){
    gROOT->LoadMacro("v0dst.C+");
 #endif
 
-   TChain * t = ChainThem("./picodst_exp_test.list","McV0PicoDst",nlist,block);
+   TChain * t = ChainThem("./picodst_la_exp.list","McV0PicoDst",nlist,block);
    if(!t){ cout<<"ERROR: no files are added to the chain!"<<endl; return; }
 
    //bound them together
    v0dst dst(t);
 
    //histograms
+   //TString Dir("");
    string Dir = "";
+   //TString Name("mcla_exp");
    string Name = "mcla_exp";
-   string temp_str = Dir + Name +stringify(nlist)+".cust.histo.root";
-   TFile ohm(temp_str.c_str(),"recreate");
+   string filename = Dir+Name+stringify(nlist)+".cuts.histo.root"; 
+
+   TFile ohm(filename.c_str(),"recreate");
+   
 
    Float_t pdgmass = 1.115683;
    Float_t masswidth = 0.07+0.01;
 
-double totCount=0;
-double nCount=0;
+   int totCount=0;
+   int nCount=0;
 
    //QA histograms about event-wise information
    TH1F * hmNRefMult = new TH1F("hmNRefMult","Number of reference multiplicity",4000,0,1000);
@@ -99,9 +102,9 @@ double nCount=0;
    TH1F * hmBachDca = new TH1F("hmBachDca","Dca to PV of Bach", 200,0,25);
    TH1F * hmsinth = new TH1F("hmsinth","xi sinth", 200,0,0.3);
    TH1F * hmTrack1nHits = new TH1F("hmTrack1nHits","nHits of Track 1", 100,0,100);
-   TH1F * hmTrack2nHits = new TH1F("hmTrack2nHits","nHits of Track 2", 100,0,100);
-TH2F * hmTwoTracknHits = new TH2F("hmTwoTracknHits","nHits of Two Tracks", 50,-0.5,49.5,50,-0.5,49.5);
-   
+   TH1F * hmTrack2nHits = new TH1F("hmTrack2nHits","nHits of Track 2", 100,0,100);  
+   TH2F * hmTwoTracknHits = new TH2F("hmTwoTracknHits","nHits of Two Tracks", 50,-0.5,49.5,50,-0.5,49.5);
+ 
    TH2I * hmSumMcV0 = new TH2I("hmSumMcV0", "MC V0 counts in different cent and pt bin", kCentBin,0,kCentBin,kPtBin,0,kPtBin);
    TH2I * hmSumRcV0 = new TH2I("hmSumRcV0", "RC V0 counts in different cent and pt bin", kCentBin,0,kCentBin,kPtBin,0,kPtBin);
 
@@ -118,22 +121,29 @@ TH2F * hmTwoTracknHits = new TH2F("hmTwoTracknHits","nHits of Two Tracks", 50,-0
    TH1F * hmTrack2[kCentBin][kPtBin];//new
 
    for(Int_t iIM=0; iIM<kCentBin; iIM++){
-	string hName = "hmInvMass";
-	string hTitle = "Invariant mass for ";
+	//TString hName("hmInvMass");
+        string hName = "hmInvMass"; 
+	//TString hTitle("Invariant mass for ");
+	string hTitle = "Invariant mass for";
 	hName = hName + "Cent" + stringify(iIM);
 	hTitle = hTitle + "centrality bin " + stringify(iIM);
 	hmIMCent[iIM] = new TH1F(hName.c_str(), hTitle.c_str(), 200, pdgmass-masswidth, pdgmass+masswidth);
 	for(Int_t jIM=0; jIM<kPtBin; jIM++){
-	   string hName = "hmInvMass";
-	   string hTitle = "Invariant mass for ";
-	   hName = hName + "Cent" + stringify(iIM) + "Pt" + stringify(jIM);
-	   hTitle = hTitle + "centrality bin " + stringify(iIM) + " pt bin " + stringify(jIM);
-	   hmIM[iIM][jIM] = new TH1F(hName, hTitle, 200, pdgmass-masswidth, pdgmass+masswidth);
-           string hHits1 = "Track1nHits";//new
+	   //TString hName("hmInvMass");
+	   string hName1 = "hmInvMass";
+	   //TString hTitle("Invariant mass for ");
+	   string hTitle1 = "Invariant mass for";
+	   hName1 = hName1 + "Cent" + stringify(iIM) + "Pt" + stringify(jIM);
+	   hTitle1 = hTitle1 + "centrality bin " + stringify(iIM) + " pt bin " + stringify(jIM);
+	   hmIM[iIM][jIM] = new TH1F(hName1.c_str(), hTitle1.c_str(), 200, pdgmass-masswidth, pdgmass+masswidth);
+           //TString hHits1("Track1nHits");//new
+           string hHits1 = "Track1nHits";
            hHits1 = hHits1 + "Cent" + Form("%d",iIM) + "Pt" + Form("%d",jIM);//new
-           string hHits2 = "Track2nHits";//new
+           //TString hHits2("Track2nHits");//new
+           string hHits2 = "Track2nHits";
            hHits2 = hHits2 + "Cent" + Form("%d",iIM) + "Pt" + Form("%d",jIM);//new
-           string hHitsTitle = "Track nHits ";//new
+           //TString hHitsTitle("Track nHits ");//new
+           string hHitsTitle = "Track nHits";
            hHitsTitle = hHitsTitle + "centrality bin " + Form("%d",iIM) + " pt bin " + Form("%d",jIM);//new
            hmTrack1[iIM][jIM] = new TH1F(hHits1.c_str(), hHitsTitle.c_str(), 50, -0.5, 49.5);//new
            hmTrack2[iIM][jIM] = new TH1F(hHits2.c_str(), hHitsTitle.c_str(), 50, -0.5, 49.5);//new
@@ -151,11 +161,13 @@ TH2F * hmTwoTracknHits = new TH2F("hmTwoTracknHits","nHits of Two Tracks", 50,-0
    TH1D * hmGroup = new TH1D("hmGroup","Run Group finder",kGroup,grpbd);
    TH1F * hmCent[kGroup];
    for(Int_t i=0;i<kGroup;i++){
+      //TString hName("hmCent");
       string hName = "hmCent";
       hName = hName + stringify(i);
+      //TString hTitle("Centrality bin finder for group ");
       string hTitle = "Centrality bin finder for group ";
       hTitle = hTitle + stringify(i);
-      hmCent[i] = new TH1F(hName.c_str(), hTitle.c_str(), kCentBin,centbd[i]);
+      //hmCent[i] = new TH1F(hName.c_str(),hTitle.c_str(),kCentBin,centbd[i]);
    }
    TH1F * hmPt = new TH1F("hmPt","Pt bin finder",kPtBin,ptbd);
 
@@ -169,19 +181,20 @@ TH2F * hmTwoTracknHits = new TH2F("hmTwoTracknHits","nHits of Two Tracks", 50,-0
 	if (ientry < 0) break;
 	nb = t->GetEntry(jentry);   nbytes += nb;
 
-	if(jentry%10000==0)cout<<jentry<<" "<<nentries<<endl;
+	if(jentry%1000==0)cout<<jentry<<" "<<nentries<<endl;
 
-	if(fabs(dst.primvertexX*dst.primvertexX+dst.primvertexY*dst.primvertexY)>4.0)continue;
-	if(fabs(dst.primvertexZ)>50.0)continue;
+	//if(fabs(dst.primvertexX*dst.primvertexX+dst.primvertexY*dst.primvertexY)>4.0)continue;
+	if(fabs(dst.primvertexZ)>40.0)continue;
 	//fill histograms
 	//Int_t centbin = getCentBin(dst.nrefmult);
 	Int_t grp = hmGroup->FindBin(dst.runnumber)-1;
       //cout<<dst.runnumber<<" "<<grp<<endl;
       hmGroup->Fill(dst.runnumber);
       if(grp<0 || grp >= kGroup) continue;
-      Int_t centbin = hmCent[grp]->FindBin(dst.nrefmult)-1;
-      hmCent[grp]->Fill(dst.nrefmult);
-      if(centbin==kCentBin)centbin = -1;
+      //Int_t centbin = hmCent[grp]->FindBin(dst.nrefmult)-1;
+      int centbin = dst.centBin9;
+      //hmCent[grp]->Fill(dst.nrefmult);
+      //if(centbin==kCentBin)centbin = -1;
 
 	hmNRefMult->Fill(dst.nrefmult);
 	hmVertexZ->Fill(dst.primvertexZ);
@@ -225,15 +238,17 @@ TH2F * hmTwoTracknHits = new TH2F("hmTwoTracknHits","nHits of Two Tracks", 50,-0
 //	   if(fabs(dst.v0rapidity[i])>1.0)continue;
 
                 if(fabs(dst.v0rapidity[i])>0.5)continue;
-                if(dst.v0declen[i]<4.)continue;
-                if(dst.v0dca[i]>0.7)continue;
-                if(dst.dau1dca[i]<0.5)continue;
-                if(dst.dau2dca[i]<1.5)continue;
-                if(dst.dca1to2[i]>0.8)continue;
+                if(dst.v0declen[i]<6.)continue;
+                if(fabs(dst.v0eta[i])>1.)continue;
+                if(dst.v0dca[i]>0.6)continue;
+                if(dst.dau1dca[i]<0.6)continue;
+                if(dst.dau2dca[i]<1.8)continue;
+                if(dst.dca1to2[i]>0.7)continue;
 
                 if(dst.v0pt[i]<0.6&&dst.dau1dca[i]<0.7)continue;
                 if(dst.v0pt[i]<0.6&&dst.dau2dca[i]<2.5)continue;
-
+                if(abs(dst.v0mass[i]-1.115683) > 0.004) continue;
+                if(fabs(dst.v0eta[i]) > 1.0) continue;
  
 	   StThreeVectorF PV(dst.primvertexX,dst.primvertexY,dst.primvertexZ);
 	   StThreeVectorF xv0(dst.v0x[i],dst.v0y[i],dst.v0z[i]);
@@ -310,8 +325,8 @@ TH2F * hmTwoTracknHits = new TH2F("hmTwoTracknHits","nHits of Two Tracks", 50,-0
 	   Float_t wRcNoCount = wMcCount[i][j]-wRcCount[i][j];
 	   Float_t w2RcNoCount = w2McCount[i][j]-w2RcCount[i][j];
 	   Float_t efferr = sqrt(w2RcCount[i][j]*(wRcNoCount-wRcOutCount[i][j])*(wRcNoCount-wRcOutCount[i][j])+w2RcNoCount*(wRcCount[i][j]+wRcOutCount[i][j])*(wRcCount[i][j]+wRcOutCount[i][j])+w2RcOutCount[i][j]*wMcCount[i][j]*wMcCount[i][j])/wMcCount[i][j]/wMcCount[i][j];
-	   cout<<i<<" "<<j<<" "<<wMcCount[i][j]<<" "<<wRcCount[i][j]<<" "<<wRcOutCount[i][j]<<" "<<w2McCount[i][j]<<" "<<w2RcCount[i][j]<<" "<<w2RcOutCount[i][j]<<" "<<eff<<" "<<efferr/eff<<endl;
-	   oweight<<i<<" "<<j<<" "<<wMcCount[i][j]<<" "<<wRcCount[i][j]<<" "<<w2McCount[i][j]<<" "<<w2RcCount[i][j]<<" "<<eff<<" "<<efferr/eff<<endl;
+	   cout<<i<<" "<<j<<" "<<wMcCount[i][j]<<" "<<wRcCount[i][j]<<" "<<wRcOutCount[i][j]<<" "<<w2McCount[i][j]<<" "<<w2RcCount[i][j]<<" "<<w2RcOutCount[i][j]<<" "<<eff<<endl;//" "<<efferr/eff<<endl;
+	   oweight<<i<<" "<<j<<" "<<wMcCount[i][j]<<" "<<wRcCount[i][j]<<" "<<w2McCount[i][j]<<" "<<w2RcCount[i][j]<<" "<<eff<<" "<<efferr<<endl;
 	}
 
 cout<<"Counts = "<<nCount<<endl;
@@ -348,7 +363,9 @@ ipara.close();
    dexp.SetParameters(1.10655e+02,5.10130e-02,5.98316e-01,2.83653e-01);
    wgt = dexp.Eval(pt);
 */
-wgt = wgt*exp(pt/0.35)/pt;	
+	
+   //return wgt;
+   wgt = exp(pt/0.35)/pt;	
    return wgt;
 }
 
