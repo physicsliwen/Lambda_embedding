@@ -14,8 +14,8 @@ void reconstruct_mcv0(TString InputFileList, Int_t Nlist, Int_t Block, Int_t nEv
 //  loadSharedLibraries();
   gROOT->Macro("loadMuDst.C");
   gROOT->LoadMacro("$STAR/StRoot/StMuDSTMaker/COMMON/macros/loadSharedLibraries.C");
-        loadSharedLibraries();
-        gROOT->Macro("LoadLogger.C");
+  loadSharedLibraries();
+  gROOT->Macro("LoadLogger.C");
   /*
   gSystem->Load("St_base");
   gSystem->Load("StChain");
@@ -127,7 +127,18 @@ void reconstruct_mcv0(TString InputFileList, Int_t Nlist, Int_t Block, Int_t nEv
   Name.Append(fileIndex);
   mcsig -> setHistoFileName(OutputDir+Name+".la.histo.root") ; // Name the output file for histograms
   mcsig -> setV0TreeFileName(OutputDir+Name+".la.picodst.root"); // V0 candidate tree file for further cuts. 
-  mcsig -> setV0Type(kLambda);   //set V0 type. kKs, or kLambda, kAntiLambda. once a time! 
+  //mcsig -> setV0Type(kLambda);   //set V0 type. kKs, or kLambda, kAntiLambda. once a time! 
+  
+//============================================================
+//          Change Particle Type
+//============================================================
+
+  mcsig -> setV0Type(kAntiLambda);   //set V0 type. kKs, or kLambda, kAntiLambda. once a time! 
+
+//============================================================
+//
+//============================================================
+
   mcsig -> SetDebug(0);
  
   if ( nEvents == 0 )  nEvents = 10000000 ;       // Take all events in nFiles if nEvents = 0

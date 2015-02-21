@@ -44,7 +44,7 @@ Float_t  ptbd[kPtBin+1]={0.2,0.4,0.6,0.8,1.0,1.2,1.4,1.6,1.8,2.0,2.3,2.6,3.0,3.4
 
 Double_t getWeight(Int_t cent, Float_t pt);
 
-void cuts_exp_la(int nlist, int block){
+void cuts_fp_antila(int nlist, int block){
 
    //firstly use the TTree::MakeClass to generate a handy wrapper class.
    //modify it (the array size) and load it here
@@ -52,7 +52,7 @@ void cuts_exp_la(int nlist, int block){
    gROOT->LoadMacro("v0dst.C+");
 //#endif
 
-   TChain * t = ChainThem("./picodst_antila_exp.list","McV0PicoDst",nlist,block);
+   TChain* t = ChainThem("./picodst_la_flat.list","McV0PicoDst",nlist,block);
    if(!t){ cout<<"ERROR: no files are added to the chain!"<<endl; return; }
 
    //bound them together
@@ -61,8 +61,8 @@ void cuts_exp_la(int nlist, int block){
    //histograms
    //TString Dir("");
    string Dir = "";
-   //TString Name("mcla_exp");
-   string Name = "mcantila_exp";
+   //TString Name("mcla_fp");
+   string Name = "mcla_fp";
    string filename = Dir+Name+stringify(nlist)+".cuts.histo.root"; 
 
    TFile ohm(filename.c_str(),"recreate");
@@ -318,7 +318,7 @@ void cuts_exp_la(int nlist, int block){
 	}
    }
 
-   ofstream oweight("weight_antilambda_exp.txt");
+   ofstream oweight("weight_antilambda_fp.txt");
    
    for(int i=0;i<kCentBin;i++)
 	for(int j=0;j<kPtBin;j++){
@@ -366,8 +366,7 @@ ipara.close();
 */
 	
    //return wgt;
-   wgt = exp(pt/0.35)/pt;	
-   return wgt;
+   return 1;
 }
 
 TChain* ChainThem(char* filelist, char* treename, int nlist, int block){

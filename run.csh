@@ -20,4 +20,5 @@ cd /global/homes/l/lwen1990/pwg/embedding/Lambda
 #root4star -b -q reconstruct_mcv0.C\(\"ksfp_100_144.list\",$1,1\) 
 #root4star -b -q reconstruct_mcv0.C\(\"alafp_101_141.list\",$1,1\) 
 #root4star -b -q reconstruct_mcv0.C\(\"Lambda_test.list\",$1,1\)
-root4star -b -q reconstruct_mcv0.C\(\"auau200GeV_run11_antila_flat.list\",$1,1\)
+#root4star -b -q reconstruct_mcv0.C\(\"auau200GeV_run11_antila_flat.list\",$1,1\)
+root4star -b -q reconstruct_mcv0.C\(\"auau200GeV_run11_antila_exp.list\",$1,1\)
